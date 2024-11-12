@@ -64,7 +64,7 @@ export default defineUserConfig({
             }
         ]
     }),
-    base: '/',
+    base: '/blog/',
     lang: 'zh-CN',
     title: '西瓜🍉',
     description: '西瓜哥学代码',
