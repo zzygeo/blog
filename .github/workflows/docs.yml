@@ -32,6 +32,7 @@ jobs:
           node-version: 18
           # 缓存 pnpm 依赖
           cache: pnpm
+          cache-dependency-path: ./blog/package-lock.json
 
       # 运行构建脚本
       - name: Build VuePress site
