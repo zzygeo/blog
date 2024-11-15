@@ -42,14 +42,13 @@ export default defineUserConfig({
                         text: '时区问题',
                         link: '/java/timezone/',
                         collapsible: true,
+                    },
+                    {
+                        text: 'nacos',
+                        link: '/java/nacos/',
+                        collapsible: true,
                     }
                 ]
-            },
-            {
-                text: 'three',
-                link: '/three/',
-                collapsible: true,
-                children: []
             },
             {
                 text: '设计模式',
