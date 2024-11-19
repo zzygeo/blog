@@ -60,6 +60,11 @@ export default defineUserConfig({
                         link: '/pattern/introduce'
                     }
                 ]
+            },
+            {
+                text: '服务器',
+                link: '/server/',
+                collapsible: true,
             }
         ]
     }),

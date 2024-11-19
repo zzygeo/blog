@@ -291,3 +291,143 @@ management:
 ```text
 curl -X POST http://localhost:18084/actuator/refresh
 ```
+
+### nacos的profiles粒度控制
+
+从Spring Boot 2.4版本开始，bootstrap.yml不再被自动加载，除非你明确引入了相关的启动器（starter）来支持它。
+
+因此直接在配置在spring.config.import这样配置，在启动的时候指定-Dspring.profiles.active
+
+```yaml
+spring:
+  config:
+    import:
+      - nacos:nacos-config-example.properties?refresh=true
+      - nacos:${spring.application.name}-${spring.profiles.active}.properties?refresh=true
+```
+
+### nacos的namespace粒度控制
+
+namespace用来隔离不同的环境，比如开发环境、生产环境。先在nacos里创建不同的namespace，即使data-id一样，在java启动时候指定-Dspring.cloud.config.namespace以获得不同的配置。
+
+### nacos读取配置的优先级
+
+Nacos Config 目前提供了三种配置能力从 Nacos 拉取相关的配置：
+
+1. 通过 spring.cloud.nacos.config.shared-configs.data-id 支持多个共享 Data Id 的配置
+
+2. 通过 spring.cloud.nacos.config.extension-config.data-id 的方式支持多个扩展 Data Id 的配置
+
+3. 通过内部相关规则(应用名、应用名+ Profile )自动生成相关的 Data Id 配置
+
+当三种方式共同使用时，他们的一个优先级关系是: 1 < 2 < 3
+
+### 结合openfeign的一次简单调用
+
+一个module专门来存放service
+
+```java
+public interface UserService {
+    @GetMapping("/user/{name}")
+    String getUserName(@PathVariable("name") String name);
+}
+```
+
+provider module部分：
+
+启动类添加@EnableDiscoveryClient。
+
+```java
+@SpringBootApplication
+@EnableDiscoveryClient
+public class ProviderApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ProviderApplication.class, args);
+    }
+
+}
+```
+
+服务提供代码:
+
+```java
+@RestController
+public class ProviderController implements UserService {
+
+    @Override
+    @GetMapping("/user/{name}")
+    public String getUserName(@PathVariable("name") String name) {
+        return "provider " + name;
+    }
+}
+```
+
+consumer module部分：
+
+启动类添加
+
+```java
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableFeignClients
+public class ConsumerApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ConsumerApplication.class, args);
+    }
+}
+```
+
+声明FeignClient
+
+```java
+@FeignClient(name = "provider")
+public interface FeignService extends UserService {
+}
+```
+
+controller调用的代码。
+
+```java
+@RestController
+public class ConsumerController {
+    @Autowired
+    private FeignService feignService;
+
+    @GetMapping("/user/{name}")
+    public String getName(@PathVariable String name){
+        return feignService.getUserName(name);
+    }
+}
+```
+
+### nacos注册服务的源码探究
+
+在springboot项目中，通过spring.factories文件中的自动配置类**NacosDiscoveryAutoConfiguration**，Nacos 客户端会被自动初始化。
+
+这个信息可以在spring-cloud-starter-alibaba-nacos包找到:
+
+![nacos](https://github.com/zzygeo/picx-images-hosting/raw/master/20241119/nacos.factories.26li9zknu1.webp)
+
+当NacosServiceRegistryAutoConfiguration类被自动加载的时候，它负责创建NacosServiceRegistry、NacosRegistration 和 NacosAutoServiceRegistration 这三个 Bean。
+
+![NacosServiceRegistryAutoConfiguration类](https://github.com/zzygeo/picx-images-hosting/raw/master/NacosServiceRegistryAutoConfiguration类.2yydrrzq9m.webp)
+
+NacosAutoServiceRegistration类调用super（构造函数）将NacosServiceRegistry注册到了AbstractAutoServiceRegistration。
+
+NacosAutoServiceRegistration继承自 AbstractAutoServiceRegistration，并且实现了 ApplicationListener\<ApplicationEvent\> 接口，意味着它可以监听应用程序事件并作出相应的响应。
+
+当监听到事件变化以后，触发了start方法。
+
+![NacosAutoServiceRegistry](https://github.com/zzygeo/picx-images-hosting/raw/master/NacosAutoServiceRegistry.5mnu25002f.webp)
+
+![AsbtractAutoService的注册](https://github.com/zzygeo/picx-images-hosting/raw/master/AsbtractAutoService的注册.pfd8ar8yi.webp)
+
+随后调用了已经被注册好的NacosServiceRegistry类的register方法。
+
+![NacosServiceRegister的调用](https://github.com/zzygeo/picx-images-hosting/raw/master/NacosServiceRegister的调用.3nrnbt45c2.webp)
+
+这个register干了什么呢，先与nacos服务器建立连接创建了namingService，然后拿到data-id、group信息，将服务实例信息一起注册到nacos服务器。
+
+![nacosServerRegistry注册服务](https://github.com/zzygeo/picx-images-hosting/raw/master/20241119/nacosServerRegistry注册服务.6f0pjubuao.webp)
