@@ -44,9 +44,19 @@ export default defineUserConfig({
                         collapsible: true,
                     },
                     {
-                        text: 'nacos',
-                        link: '/java/nacos/',
+                        text: 'springcloud',
+                        link: '/java/springcloud/nacos',
                         collapsible: true,
+                        children: [
+                            {
+                                text: 'nacos',
+                                link: '/java/springcloud/nacos',
+                            },
+                            {
+                                text: 'sentinel',
+                                link: '/java/springcloud/sentinel',
+                            }
+                        ]
                     }
                 ]
             },

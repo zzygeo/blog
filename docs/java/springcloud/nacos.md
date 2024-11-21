@@ -29,7 +29,7 @@
 ```yaml
 services:
   nacos:
-    image: nacos/nacos-server:v2.2.0
+    image: springcloud/springcloud-server:v2.2.0
     ports:
       - "8848:8848"
       - "9848:9848"
@@ -43,8 +43,8 @@ services:
       MYSQL_SERVICE_USER: root
       MYSQL_SERVICE_PASSWORD: 123
     volumes:
-      - /Users/zzy/document/docker_data/nacos/logs:/home/nacos/logs
-      - /Users/zzy/document/docker_data/nacos/conf:/home/nacos/conf
+      - /Users/zzy/document/docker_data/springcloud/logs:/home/springcloud/logs
+      - /Users/zzy/document/docker_data/springcloud/conf:/home/springcloud/conf
     restart: always
 ```
 
@@ -72,18 +72,18 @@ yaml配置
 ```yaml
 spring:
   application:
-    name: nacos-config-example
+    name: springcloud-config-example
   cloud:
     nacos:
       config:
         serverAddr: 127.0.0.1:8848
-        username: 'nacos'
-        password: 'nacos'
+        username: 'springcloud'
+        password: 'springcloud'
         extendKey: value
         refresh-enabled: true # 自动刷新配置，默认为true，不设置这个无法自动刷新配置
   config:
     import:
-      - nacos:nacos-config-example.properties?refresh=true
+      - springcloud:springcloud-config-example.properties?refresh=true
 ```
 
 将nacos的configdata配置调整为debug可以看到每次配置变更时重新加载的配置
@@ -262,18 +262,18 @@ com.alibaba.cloud.examples.example.ValueAnnotationExample@5246b1ac
 ```yaml
 spring:
   application:
-    name: nacos-config-example
+    name: springcloud-config-example
   cloud:
     nacos:
       config:
         serverAddr: 127.0.0.1:8848
-        username: 'nacos'
-        password: 'nacos'
+        username: 'springcloud'
+        password: 'springcloud'
         extendKey: value
         refresh-enabled: false # 自动刷新配置
   config:
     import:
-      - nacos:nacos-config-example.properties?refresh=true
+      - springcloud:springcloud-config-example.properties?refresh=true
 management:
   endpoint:
     health:
@@ -302,8 +302,8 @@ curl -X POST http://localhost:18084/actuator/refresh
 spring:
   config:
     import:
-      - nacos:nacos-config-example.properties?refresh=true
-      - nacos:${spring.application.name}-${spring.profiles.active}.properties?refresh=true
+      - springcloud:springcloud-config-example.properties?refresh=true
+      - springcloud:${spring.application.name}-${spring.profiles.active}.properties?refresh=true
 ```
 
 ### nacos的namespace粒度控制
