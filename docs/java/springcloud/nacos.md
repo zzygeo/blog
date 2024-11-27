@@ -56,6 +56,16 @@ services:
 
 介绍一些nacos的基本使用方法和tips。
 
+### 引入nacos-config依赖报错
+
+在引入了spring-cloud-starter-alibaba-nacos-config这个依赖以后，如果不配置spring.config.import选项会报错，可以配置如下解决。
+
+```yaml
+spring:
+  config:
+    import: optional:nacos:instead
+```
+
 ### 动态获取nacos的配置
 
 配置依赖
