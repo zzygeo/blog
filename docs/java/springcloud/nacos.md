@@ -77,13 +77,13 @@ spring:
     nacos:
       config:
         serverAddr: 127.0.0.1:8848
-        username: 'springcloud'
-        password: 'springcloud'
+        username: 'nacos'
+        password: 'nacos'
         extendKey: value
         refresh-enabled: true # 自动刷新配置，默认为true，不设置这个无法自动刷新配置
   config:
     import:
-      - springcloud:springcloud-config-example.properties?refresh=true
+      - nacos:springcloud-config-example.properties?refresh=true
 ```
 
 将nacos的configdata配置调整为debug可以看到每次配置变更时重新加载的配置

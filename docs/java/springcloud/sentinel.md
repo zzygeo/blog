@@ -22,6 +22,12 @@ spring:
 
 ```
 
+启动sentinel-dashboard:
+
+```text
+java -Dserver.port=8080 -Dcsp.sentinel.dashboard.server=localhost:8080 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard.jar
+```
+
 ## 限流和降级
 
 调用的接口代码如下：
