@@ -279,6 +279,7 @@ public class SentinelDataSourceConfig implements InitFunc {
 额外引入这两个配置：
 
 ```xml
+
 <dependencies>
     <dependency>
         <groupId>com.alibaba.cloud</groupId>
@@ -342,7 +343,8 @@ spring:
     import: optional:nacos:instead
 ```
 
-通过上面的配置可以保证读取到nacos里的sentinel规则配置，给不同的规则分配了不同的data-id和group-id，**但是如果在sentinel-dashboard里配置了新的规则，nacos是不知道的**，这时就要修改sentinel-dashboard的配置了。
+通过上面的配置可以保证读取到nacos里的sentinel规则配置，给不同的规则分配了不同的data-id和group-id，*
+*但是如果在sentinel-dashboard里配置了新的规则，nacos是不知道的**，这时就要修改sentinel-dashboard的配置了。
 
 我们知道sentinel-dashboard的配置创建和读取是走的内存，服务重启会丢失规则数据，所以重点是将读取和发布的方法改造成nacos形式的。
 
@@ -789,5 +791,38 @@ public class FlowControllerV1 {
 }
 ```
 
+## sentinel对openfeign的支持
 
+对于openfeign方法调用，主要处理的还是**降级情况**。
 
+一般我们会有一个**通用的包存放services的定义**，然后在具体的消费者里去继承这个接口并加上FeignClient的注解。
+
+```java
+@FeignClient(name = "provider", fallback = UserServiceFallback.class, configuration = FeignConfiguration.class)
+public interface UserFeignService extends UserService {
+}
+```
+
+其中UserServiceFallback.class提供具体的降级实现，FeignConfiguration.class用来提供Feign组件的自定义配置。
+
+注意，FeignConfiguration.class**不需要添加@Configuration注解**，防止Spring将这个类当作常规配置类来处理，从而避免潜在的 Bean 重复定义问题。
+
+**UserServiceFallback需要继承的是UserFeignService**，而不是UserService
+
+```java
+public class UserServiceFallback implements UserFeignService {
+    @Override
+    public String getUserName(@PathVariable("name") String name) {
+        return "我是降级方法";
+    }
+}
+```
+
+```java
+public class FeignConfiguration {
+    @Bean
+    public UserServiceFallback userServiceFallback() {
+        return new UserServiceFallback();
+    }
+}
+```

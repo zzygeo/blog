@@ -55,6 +55,18 @@ export default defineUserConfig({
                             {
                                 text: 'sentinel',
                                 link: '/java/springcloud/sentinel',
+                            },
+                            {
+                                text: 'openfeign',
+                                link: '/java/springcloud/openfeign',
+                            },
+                            {
+                                text: 'micrometer_zipkin',
+                                link: '/java/springcloud/micrometer_zipkin',
+                            },
+                            {
+                                text: 'gateway',
+                                link: '/java/springcloud/gateway',
                             }
                         ]
                     }
