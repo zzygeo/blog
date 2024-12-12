@@ -306,15 +306,9 @@ curl -X POST http://localhost:18084/actuator/refresh
 
 从Spring Boot 2.4版本开始，bootstrap.yml不再被自动加载，除非你明确引入了相关的启动器（starter）来支持它。
 
-因此直接在配置在spring.config.import这样配置，在启动的时候指定-Dspring.profiles.active
+因此直接在配置在spring.config.import这样配置，在启动的时候指定-Dspring.profiles.active。
 
-```yaml
-spring:
-  config:
-    import:
-      - springcloud:springcloud-config-example.properties?refresh=true
-      - springcloud:${spring.application.name}-${spring.profiles.active}.properties?refresh=true
-```
+springboot会默认读取${spring.application.name}-${spring.profiles.active}.{spring.cloud.nacos.config.file-extension}的配置。
 
 ### nacos的namespace粒度控制
 
