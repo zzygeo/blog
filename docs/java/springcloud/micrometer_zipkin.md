@@ -2,6 +2,10 @@
 
 traceId，spanId，链路的唯一标识是traceId。spanId标识发起的请求，各span通过parentId关联起来。
 
+## 下载zipkin.jar包
+
+直接到中央仓库的[zipkin-server的ftp目录](https://repo1.maven.org/maven2/io/zipkin/zipkin-server/)下下载。
+
 ## 引入依赖
 
 ```xml
