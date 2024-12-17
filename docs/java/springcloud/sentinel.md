@@ -69,6 +69,42 @@ public class Handler {
 }
 ```
 
+### 流控规则下的关联模式
+
+b服务访问超过阈值，关闭a服务的请求。
+
+### 流控规则下的链路模式
+
+对于同一个资源，从a链路过来进行访问限制，从b链路过来不进行访问限制，如果测试的路径是在一个controller层,要配置spring.cloud.sentinel.web-context-unify改为false。
+
+### 流控效果-预热冷启动
+
+当系统长期处于低水位的情况下，当流量突然增加时，直接把系统拉升到高水位可能瞬间把系统压垮。
+
+通过冷启动，**让通过的流量缓慢增加，在一定时间内逐渐增加到阈值上限**，给冷系统一个预热时间，避免冷系统被压垮。
+
+### 流控效果-排队等待
+
+当请求大于阈值的时候，比如每隔500ms允许下一个请求通过。
+
+这种方式主要用于处理**间隔性**的突发的流量，例如消息队列。比如某一秒有大量请求过来，然后空闲几秒的场景，希望系统能够在接下来的空闲期间逐渐处理这些请求，而不是在第一秒直接拒绝多余的请求。
+
+不适合qps > 1000这种请求。
+
+### 熔断规则-慢调用比例
+
+需要设置允许的慢调用RT（即最大的响应时间），请求的响应时间大于该值则统计为慢调用。
+
+当单位统计时常内请求数目大于设置的最小请求数目，并且慢调用的比例大于阈值时，系统变为熔断状态，经过熔断时常后熔断器变成探测恢复状态。
+
+### 熔断规则-异常比例
+
+和慢调用比例类似，只不过处理的时异常情况。
+
+### 熔断规则-异常数
+
+统计时常内的异常数量大于设定的阈值，并且调用次数也超过最小请求数。
+
 ## 热点规则的使用
 
 热点规则一般结合手动上报异常使用，这样能更加灵活的进行资源的管控，以下是一个例子。
@@ -114,6 +150,24 @@ public String hotKey(String name, String age) {
 ![sentinel-hotkey-rule-params](https://github.com/zzygeo/picx-images-hosting/raw/master/20241121/sentinel-hotkey-rule-params.45pp4fsnn.webp)
 
 针对name=224的情况，阈值就被调整到了10。
+
+## 授权规则
+
+很多时候，需要根据调用方的来源来判断是否通过此次请求，这时可以采用授权规则，根据来源的origin来判断是否允许通过，只有位于白名单的origin可以通过。
+
+这个origin默认取的是ip，但是我们可以对其进行修改，比如以下例子，我改为判断token请求参数。
+
+```java
+@Component
+public class MyRequestOriginParser implements RequestOriginParser {
+    @Override
+    public String parseOrigin(HttpServletRequest httpServletRequest) {
+        return httpServletRequest.getHeader("token");
+    }
+}
+```
+
+然后在sentinel-dashboard配置的规则就是针对params里的token生效了
 
 ## 本地持久化
 
@@ -793,13 +847,13 @@ public class FlowControllerV1 {
 
 ## sentinel对openfeign的支持
 
-对于openfeign方法调用，主要处理的还是**降级情况**。
+对于openfeign方法调用，主要还是统一处理**降级情况**，对于**单个方法，还是需要配置SentinelResource注解来进行异常的处理（限流、业务异常）**。
 
-一般我们会有一个**通用的包存放services的定义**，然后在具体的消费者里去继承这个接口并加上FeignClient的注解。
+一般我们会有一个**通用的包存放services的定义**,在这里统一配置降级的处理
 
 ```java
 @FeignClient(name = "provider", fallback = UserServiceFallback.class, configuration = FeignConfiguration.class)
-public interface UserFeignService extends UserService {
+public interface UserService {
 }
 ```
 
@@ -807,10 +861,8 @@ public interface UserFeignService extends UserService {
 
 注意，FeignConfiguration.class**不需要添加@Configuration注解**，防止Spring将这个类当作常规配置类来处理，从而避免潜在的 Bean 重复定义问题。
 
-**UserServiceFallback需要继承的是UserFeignService**，而不是UserService
-
 ```java
-public class UserServiceFallback implements UserFeignService {
+public class UserServiceFallback implements UserService {
     @Override
     public String getUserName(@PathVariable("name") String name) {
         return "我是降级方法";
@@ -826,3 +878,108 @@ public class FeignConfiguration {
     }
 }
 ```
+
+## sentinel对网关对支持
+
+sentinel对网关的支持是以route或者自定义的api分组进行的。
+
+加入以下的依赖：
+
+```xml
+<dependencies>
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        <version>2023.0.1.2</version>
+    </dependency>
+
+    <dependency>
+        <groupId>com.alibaba.cloud</groupId>
+        <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
+        <version>2023.0.1.2</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-starter-gateway</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-webflux</artifactId>
+        <version>2.6.6</version>
+    </dependency>
+</dependencies>
+```
+
+加入以下的配置：
+
+```java
+@Configuration
+public class GateWayConfig {
+
+    @PostConstruct
+    public void doInit() {
+        // 这两不是必须的，也可以在dashboard中配置，或者从nacos中获取
+        initCustomizedApis();
+        initGatewayRules();
+        // 设置自定义限流/降级处理
+        setBlocHandler();
+    }
+
+    // 初始化api组
+    private void initCustomizedApis() {
+        Set<ApiDefinition> definitions = new HashSet<>();
+        ApiDefinition api1 = new ApiDefinition("pay_route1")
+                .setPredicateItems(new HashSet<ApiPredicateItem>() {{
+                    add(new ApiPathPredicateItem().setPattern("/order/gateway/get/**")
+                            .setMatchStrategy(SentinelGatewayConstants.URL_MATCH_STRATEGY_PREFIX));
+                }});
+        ApiDefinition api2 = new ApiDefinition("pay_route2")
+                .setPredicateItems(new HashSet<ApiPredicateItem>() {{
+                    add(new ApiPathPredicateItem().setPattern("/order/gateway/info/**")
+                            .setMatchStrategy(SentinelGatewayConstants.URL_MATCH_STRATEGY_PREFIX));
+                }});
+        definitions.add(api1);
+        definitions.add(api2);
+        GatewayApiDefinitionManager.loadApiDefinitions(definitions);
+    }
+    // 初始化规则
+    private void initGatewayRules() {
+        Set<GatewayFlowRule> rules = new HashSet<>();
+        rules.add(new GatewayFlowRule("pay_route1")
+                // 流控最大值
+                .setCount(2)
+                // 时间间隔
+                .setIntervalSec(1)
+        );
+        GatewayRuleManager.loadRules(rules);
+    }
+
+    private void setBlocHandler() {
+        BlockRequestHandler blockRequestHandler = new BlockRequestHandler() {
+            @Override
+            public Mono<ServerResponse> handleRequest(ServerWebExchange exchange, Throwable ex) {
+                HashMap<String, String> map = new HashMap<>();
+                if (ex instanceof DegradeException) {
+                    map.put("errorCode", HttpStatus.TOO_MANY_REQUESTS.toString());
+                    map.put("errorMsg", "业务异常，请稍后重试");
+                } else {
+                    map.put("errorCode", HttpStatus.TOO_MANY_REQUESTS.toString());
+                    map.put("errorMsg", "请求太频繁，触发了限流，请稍后重试");
+                }
+                return ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS).contentType(MediaType.APPLICATION_JSON)
+                        .body(BodyInserters.fromValue(map));
+            }
+        };
+        GatewayCallbackManager.setBlockHandler(blockRequestHandler);
+    }
+}
+```
+
+**注意**：Sentinel 网关流控默认的粒度是 route 维度以及自定义 API 分组维度，默认不支持 URL 粒度。若通过 Spring Cloud Alibaba 接入，请将 spring.cloud.sentinel.filter.enabled 配置项置为 false（若在网关流控控制台上看到了 URL 资源，就是此配置项没有置为 false）。

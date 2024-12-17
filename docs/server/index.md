@@ -57,3 +57,27 @@ sudo systemctl start clash
 ```text
 ssh -L 8080:192.168.22.1:80 user@your_home_server_ip
 ```
+
+### 安装mysql
+
+```text
+# 先更新apt包
+sudo apt update
+
+# 查看mysql-server
+sudo apt search mysql-server
+
+# 安装
+sudo apt install -y mysql-server
+
+# 启动mysql
+sudo systemctl start mysql
+
+# 设置为开启自启
+sudo systemctl enable mysql
+
+# 修改默认的配置文件/etc/mysql/mysql.conf.d/mysqld.cnf
+
+# 如果mysql不认识时区，执行
+mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p
+```
