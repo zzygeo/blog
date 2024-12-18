@@ -868,7 +868,7 @@ public class UserServiceFallback implements UserService {
         return "我是降级方法";
     }
 }
-```
+``` 
 
 ```java
 public class FeignConfiguration {
